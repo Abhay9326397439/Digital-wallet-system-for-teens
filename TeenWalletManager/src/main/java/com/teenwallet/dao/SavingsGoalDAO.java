@@ -10,7 +10,7 @@ import java.util.List;
 public class SavingsGoalDAO {
 
     public boolean addGoal(SavingsGoal goal) {
-        String sql = "INSERT INTO savings_goals (name, target_amount, current_amount, target_date, completed) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO savings_goals (name, target_amount, current_amount, target_date, completed, username) VALUES (?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -20,6 +20,7 @@ public class SavingsGoalDAO {
             pstmt.setDouble(3, goal.getCurrentAmount());
             pstmt.setDate(4, Date.valueOf(goal.getTargetDate()));
             pstmt.setBoolean(5, goal.isCompleted());
+            pstmt.setString(6, goal.getUsername());
 
             int affectedRows = pstmt.executeUpdate();
 
@@ -43,6 +44,25 @@ public class SavingsGoalDAO {
         try (Connection conn = DBConnection.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                goals.add(extractGoalFromResultSet(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return goals;
+    }
+
+    public List<SavingsGoal> getGoalsForUser(String username) {
+        List<SavingsGoal> goals = new ArrayList<>();
+        String sql = "SELECT * FROM savings_goals WHERE username = ? ORDER BY target_date";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, username);
+            ResultSet rs = pstmt.executeQuery();
 
             while (rs.next()) {
                 goals.add(extractGoalFromResultSet(rs));
@@ -105,38 +125,6 @@ public class SavingsGoalDAO {
         return false;
     }
 
-    public double getTotalSaved() {
-        String sql = "SELECT COALESCE(SUM(current_amount), 0) as total FROM savings_goals";
-
-        try (Connection conn = DBConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-
-            if (rs.next()) {
-                return rs.getDouble("total");
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return 0.0;
-    }
-
-    public int getCompletedGoalsCount() {
-        String sql = "SELECT COUNT(*) as count FROM savings_goals WHERE completed = true";
-
-        try (Connection conn = DBConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-
-            if (rs.next()) {
-                return rs.getInt("count");
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return 0;
-    }
-
     private SavingsGoal extractGoalFromResultSet(ResultSet rs) throws SQLException {
         return new SavingsGoal(
                 rs.getInt("id"),
@@ -144,7 +132,8 @@ public class SavingsGoalDAO {
                 rs.getDouble("target_amount"),
                 rs.getDouble("current_amount"),
                 rs.getDate("target_date").toLocalDate(),
-                rs.getBoolean("completed")
+                rs.getBoolean("completed"),
+                rs.getString("username")
         );
     }
 }
