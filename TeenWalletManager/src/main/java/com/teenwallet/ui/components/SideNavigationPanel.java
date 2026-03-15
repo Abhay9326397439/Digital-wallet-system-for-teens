@@ -1,6 +1,7 @@
 package com.teenwallet.ui.components;
 
 import com.teenwallet.service.AuthService;
+import com.teenwallet.model.User;
 import com.teenwallet.ui.*;
 
 import javax.swing.*;
@@ -13,7 +14,7 @@ public class SideNavigationPanel extends JPanel {
         this.parentFrame = parent;
 
         setPreferredSize(new Dimension(200, 0));
-        setBackground(new Color(25, 25, 112)); // Dark blue
+        setBackground(new Color(25, 25, 112));
         setLayout(new GridBagLayout());
 
         initComponents();
@@ -25,7 +26,6 @@ public class SideNavigationPanel extends JPanel {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(5, 10, 5, 10);
 
-        // App logo/title
         JLabel logoLabel = new JLabel("💰 TeenWallet");
         logoLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
         logoLabel.setForeground(new Color(255, 215, 0));
@@ -35,9 +35,9 @@ public class SideNavigationPanel extends JPanel {
 
         gbc.insets = new Insets(5, 10, 5, 10);
 
-        // Navigation buttons
         add(createNavButton("🏠 Home", this::navigateHome), gbc);
 
+        User currentUser = AuthService.getCurrentUser();
         if (AuthService.isParent()) {
             add(createNavButton("➕ Add Money", this::navigateAddMoney), gbc);
         } else {
@@ -53,11 +53,9 @@ public class SideNavigationPanel extends JPanel {
 
         add(createNavButton("📋 History", this::navigateHistory), gbc);
 
-        // Spacer
         gbc.weighty = 1;
         add(Box.createVerticalGlue(), gbc);
 
-        // Logout button at bottom
         gbc.weighty = 0;
         add(createNavButton("🚪 Logout", this::logout), gbc);
     }
@@ -72,7 +70,6 @@ public class SideNavigationPanel extends JPanel {
         button.setHorizontalAlignment(SwingConstants.LEFT);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        // Hover effect
         button.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 button.setBackground(new Color(70, 130, 180));
@@ -88,35 +85,50 @@ public class SideNavigationPanel extends JPanel {
     }
 
     private void navigateHome() {
+        User currentUser = AuthService.getCurrentUser();
         if (AuthService.isParent()) {
-            openFrame(new ParentDashboardFrame());
+            new ParentDashboardFrame().setVisible(true);
         } else {
-            openFrame(new TeenDashboardFrame());
+            new TeenDashboardFrame(currentUser).setVisible(true);
         }
+        parentFrame.dispose();
     }
 
     private void navigateAddMoney() {
-        openFrame(new AddMoneyFrame());
+        if (parentFrame instanceof ParentDashboardFrame) {
+            ParentDashboardFrame parentFrame = (ParentDashboardFrame) this.parentFrame;
+            // This will be handled by the parent frame
+        }
     }
 
     private void navigatePayment() {
-        openFrame(new PaymentFrame());
+        User currentUser = AuthService.getCurrentUser();
+        if (currentUser != null && currentUser.isTeen()) {
+            new PaymentFrame(currentUser.getUsername()).setVisible(true);
+        }
     }
 
     private void navigateReports() {
-        openFrame(new ReportsFrame());
+        new ReportsFrame().setVisible(true);
     }
 
     private void navigateGoals() {
-        openFrame(new GoalsFrame());
+        User currentUser = AuthService.getCurrentUser();
+        new GoalsFrame(currentUser.getUsername()).setVisible(true);
     }
 
     private void navigateSettings() {
-        openFrame(new SettingsFrame());
+        if (AuthService.isParent()) {
+            if (parentFrame instanceof ParentDashboardFrame) {
+                ParentDashboardFrame parentFrame = (ParentDashboardFrame) this.parentFrame;
+                // This will be handled by the parent frame
+            }
+        }
     }
 
     private void navigateHistory() {
-        openFrame(new TransactionHistoryFrame());
+        User currentUser = AuthService.getCurrentUser();
+        new TransactionHistoryFrame(currentUser.getUsername()).setVisible(true);
     }
 
     private void logout() {
@@ -130,10 +142,5 @@ public class SideNavigationPanel extends JPanel {
             parentFrame.dispose();
             new LoginFrame().setVisible(true);
         }
-    }
-
-    private void openFrame(JFrame frame) {
-        parentFrame.dispose();
-        frame.setVisible(true);
     }
 }

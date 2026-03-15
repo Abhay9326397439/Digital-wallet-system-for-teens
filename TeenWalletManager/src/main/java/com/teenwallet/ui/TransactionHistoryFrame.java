@@ -3,37 +3,32 @@ package com.teenwallet.ui;
 import com.teenwallet.dao.TransactionDAO;
 import com.teenwallet.model.Transaction;
 import com.teenwallet.service.AuthService;
-import com.teenwallet.utils.ExportUtils;
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.JTableHeader;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-// Add these imports at the top of TransactionHistoryFrame.java
 import java.util.ArrayList;
 import java.util.List;
-import javax.swing.RowFilter;
 
 public class TransactionHistoryFrame extends JFrame {
-    private TransactionDAO transactionDAO;
+    private String username;
     private JTable transactionsTable;
     private DefaultTableModel tableModel;
     private TableRowSorter<DefaultTableModel> sorter;
     private JTextField searchField;
-    private JComboBox<String> filterCombo;
     private JLabel totalLabel;
     private JLabel creditLabel;
     private JLabel debitLabel;
+    private JLabel balanceLabel;
 
-    public TransactionHistoryFrame() {
-        setTitle("Transaction History");
+    public TransactionHistoryFrame(String username) {
+        this.username = username;
+        setTitle("Transaction History - " + username);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        setSize(900, 600);
+        setSize(1000, 600);
         setLocationRelativeTo(null);
-
-        transactionDAO = new TransactionDAO();
 
         initComponents();
         loadTransactions();
@@ -60,17 +55,18 @@ public class TransactionHistoryFrame extends JFrame {
         header.setBackground(new Color(70, 130, 180));
         header.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        JLabel titleLabel = new JLabel("Transaction History");
+        JLabel titleLabel = new JLabel("📋 Transaction History - " + username);
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
         titleLabel.setForeground(Color.WHITE);
         header.add(titleLabel, BorderLayout.WEST);
 
-        // Search and filter panel
+        // Search panel
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         searchPanel.setOpaque(false);
 
+        searchPanel.add(new JLabel("🔍 Search:"));
         searchField = new JTextField(15);
-        searchField.putClientProperty("JTextField.placeholderText", "Search transactions...");
+        searchField.setToolTipText("Search by category or description");
         searchField.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyReleased(java.awt.event.KeyEvent evt) {
                 filterTable();
@@ -78,15 +74,13 @@ public class TransactionHistoryFrame extends JFrame {
         });
         searchPanel.add(searchField);
 
-        filterCombo = new JComboBox<>(new String[]{"All", "Today", "This Week", "This Month", "Credits Only", "Debits Only"});
-        filterCombo.addActionListener(e -> filterTable());
-        searchPanel.add(filterCombo);
-
-        if (AuthService.isParent()) {
-            JButton exportButton = new JButton("Export to CSV");
-            exportButton.addActionListener(e -> exportToCSV());
-            searchPanel.add(exportButton);
-        }
+        JButton refreshButton = new JButton("↻ Refresh");
+        refreshButton.setBackground(Color.WHITE);
+        refreshButton.setForeground(Color.BLACK);
+        refreshButton.setFocusPainted(false);
+        refreshButton.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        refreshButton.addActionListener(e -> loadTransactions());
+        searchPanel.add(refreshButton);
 
         header.add(searchPanel, BorderLayout.EAST);
 
@@ -99,30 +93,39 @@ public class TransactionHistoryFrame extends JFrame {
         panel.setBackground(Color.WHITE);
 
         // Create table model
-        String[] columns = {"Date", "Type", "Amount", "Category", "Description", "Balance After"};
+        String[] columns = {"Date", "Type", "Amount", "Category", "Description", "Balance"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
-            }
-
-            @Override
-            public Class<?> getColumnClass(int columnIndex) {
-                if (columnIndex == 2) return Double.class;
-                return String.class;
             }
         };
 
         transactionsTable = new JTable(tableModel);
         transactionsTable.setRowHeight(30);
         transactionsTable.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        transactionsTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
-        transactionsTable.getTableHeader().setBackground(new Color(70, 130, 180));
-        transactionsTable.getTableHeader().setForeground(Color.WHITE);
+        transactionsTable.setForeground(Color.BLACK);
+        transactionsTable.setBackground(Color.WHITE);
+        transactionsTable.setGridColor(new Color(200, 200, 200));
         transactionsTable.setSelectionBackground(new Color(173, 216, 230));
 
-        // Set custom cell renderer for amount column
+        // Style the table header
+        JTableHeader header = transactionsTable.getTableHeader();
+        header.setBackground(new Color(70, 130, 180));
+        header.setForeground(Color.WHITE);
+        header.setFont(new Font("Segoe UI", Font.BOLD, 12));
+
+        // Set column widths
+        transactionsTable.getColumnModel().getColumn(0).setPreferredWidth(120);
+        transactionsTable.getColumnModel().getColumn(1).setPreferredWidth(80);
+        transactionsTable.getColumnModel().getColumn(2).setPreferredWidth(80);
+        transactionsTable.getColumnModel().getColumn(3).setPreferredWidth(100);
+        transactionsTable.getColumnModel().getColumn(4).setPreferredWidth(250);
+        transactionsTable.getColumnModel().getColumn(5).setPreferredWidth(100);
+
+        // Set custom cell renderer for amount columns
         transactionsTable.getColumnModel().getColumn(2).setCellRenderer(new AmountCellRenderer());
+        transactionsTable.getColumnModel().getColumn(5).setCellRenderer(new AmountCellRenderer());
 
         // Add sorter
         sorter = new TableRowSorter<>(tableModel);
@@ -145,6 +148,7 @@ public class TransactionHistoryFrame extends JFrame {
 
         totalLabel = new JLabel("Total Transactions: 0");
         totalLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        totalLabel.setForeground(Color.BLACK);
         panel.add(totalLabel);
 
         creditLabel = new JLabel("Total Credits: ₹0.00");
@@ -157,8 +161,7 @@ public class TransactionHistoryFrame extends JFrame {
         debitLabel.setForeground(new Color(244, 67, 54));
         panel.add(debitLabel);
 
-        JLabel balanceLabel = new JLabel("Current Balance: ₹" +
-                String.format("%.2f", transactionDAO.getCurrentBalance()));
+        balanceLabel = new JLabel("Current Balance: ₹0.00");
         balanceLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
         balanceLabel.setForeground(new Color(70, 130, 180));
         panel.add(balanceLabel);
@@ -168,82 +171,46 @@ public class TransactionHistoryFrame extends JFrame {
 
     private void loadTransactions() {
         tableModel.setRowCount(0);
-        List<Transaction> transactions = transactionDAO.getAllTransactions();
+        List<Transaction> transactions = TransactionDAO.getTransactionsForUser(username);
 
         double totalCredits = 0;
         double totalDebits = 0;
 
-        for (Transaction t : transactions) {
-            tableModel.addRow(new Object[]{
-                    t.getFormattedDate(),
-                    t.getType(),
-                    t.getAmount(),
-                    t.getCategory(),
-                    t.getDescription(),
-                    String.format("₹%.2f", t.getBalanceAfter())
-            });
+        if (transactions.isEmpty()) {
+            tableModel.addRow(new Object[]{"No transactions found", "", "", "", "", ""});
+        } else {
+            for (Transaction t : transactions) {
+                tableModel.addRow(new Object[]{
+                        t.getFormattedDate(),
+                        t.getType(),
+                        t.getAmount(),
+                        t.getCategory(),
+                        t.getDescription(),
+                        t.getBalanceAfter()
+                });
 
-            if (t.getType() == Transaction.TransactionType.CREDIT) {
-                totalCredits += t.getAmount();
-            } else if (t.getType() == Transaction.TransactionType.DEBIT) {
-                totalDebits += t.getAmount();
+                if (t.getType() == Transaction.TransactionType.CREDIT) {
+                    totalCredits += t.getAmount();
+                } else if (t.getType() == Transaction.TransactionType.DEBIT) {
+                    totalDebits += t.getAmount();
+                }
             }
         }
 
         // Update summary
+        double currentBalance = TransactionDAO.getCurrentBalanceForUser(username);
         totalLabel.setText("Total Transactions: " + transactions.size());
         creditLabel.setText(String.format("Total Credits: ₹%.2f", totalCredits));
         debitLabel.setText(String.format("Total Debits: ₹%.2f", totalDebits));
+        balanceLabel.setText(String.format("Current Balance: ₹%.2f", currentBalance));
     }
 
     private void filterTable() {
         String searchText = searchField.getText().trim().toLowerCase();
-        String filter = (String) filterCombo.getSelectedItem();
-
-        List<RowFilter<Object, Object>> filters = new ArrayList<>();
-
-        // Text search filter
         if (!searchText.isEmpty()) {
-            filters.add(RowFilter.regexFilter("(?i)" + searchText, 0, 3, 4)); // Search in date, category, description
-        }
-
-        // Date/Type filter
-        if (!"All".equals(filter)) {
-            switch (filter) {
-                case "Today":
-                    String today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-                    filters.add(RowFilter.regexFilter(today, 0));
-                    break;
-                case "This Week":
-                    // Complex date filtering would require custom comparator
-                    break;
-                case "This Month":
-                    String thisMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("MM/yyyy"));
-                    filters.add(RowFilter.regexFilter(thisMonth, 0));
-                    break;
-                case "Credits Only":
-                    filters.add(RowFilter.regexFilter("CREDIT", 1));
-                    break;
-                case "Debits Only":
-                    filters.add(RowFilter.regexFilter("DEBIT", 1));
-                    break;
-            }
-        }
-
-        if (!filters.isEmpty()) {
-            sorter.setRowFilter(RowFilter.andFilter(filters));
+            sorter.setRowFilter(RowFilter.regexFilter("(?i)" + searchText, 3, 4)); // Search in category and description
         } else {
             sorter.setRowFilter(null);
-        }
-    }
-
-    private void exportToCSV() {
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setSelectedFile(new java.io.File("transactions_export.csv"));
-
-        if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
-            ExportUtils.exportTableToCSV(transactionsTable, fileChooser.getSelectedFile().getPath());
-            JOptionPane.showMessageDialog(this, "Transactions exported successfully!");
         }
     }
 
@@ -255,16 +222,27 @@ public class TransactionHistoryFrame extends JFrame {
 
             Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 
-            String type = (String) table.getValueAt(row, 1);
-            if ("CREDIT".equals(type)) {
-                c.setForeground(new Color(76, 175, 80)); // Green
-            } else if ("DEBIT".equals(type)) {
-                c.setForeground(new Color(244, 67, 54)); // Red
-            } else {
-                c.setForeground(new Color(255, 152, 0)); // Orange for savings
+            if (value instanceof Double) {
+                setText(String.format("₹%.2f", (Double) value));
+                setHorizontalAlignment(JLabel.RIGHT);
             }
 
-            setHorizontalAlignment(JLabel.RIGHT);
+            // Color code based on transaction type
+            if (column == 2) { // Amount column
+                String type = table.getValueAt(row, 1) != null ? table.getValueAt(row, 1).toString() : "";
+                if ("CREDIT".equals(type)) {
+                    c.setForeground(new Color(76, 175, 80)); // Green
+                } else if ("DEBIT".equals(type)) {
+                    c.setForeground(new Color(244, 67, 54)); // Red
+                } else {
+                    c.setForeground(new Color(255, 152, 0)); // Orange for savings
+                }
+            } else if (column == 5) { // Balance column
+                c.setForeground(new Color(70, 130, 180)); // Blue
+            } else {
+                c.setForeground(Color.BLACK);
+            }
+
             return c;
         }
     }

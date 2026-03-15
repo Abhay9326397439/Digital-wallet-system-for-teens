@@ -3,7 +3,7 @@ package com.teenwallet.ui;
 import com.teenwallet.model.SavingsGoal;
 import com.teenwallet.service.AuthService;
 import com.teenwallet.service.WalletService;
-import com.teenwallet.utils.FileManager;
+import com.teenwallet.dao.SavingsGoalDAO;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -17,14 +17,23 @@ public class GoalsFrame extends JFrame {
     private DefaultTableModel tableModel;
     private JPanel progressPanel;
     private boolean isParent;
+    private String username;
+    private SavingsGoalDAO goalDAO;
 
     public GoalsFrame() {
-        setTitle("Savings Goals");
+        this(AuthService.getCurrentUser().getUsername());
+    }
+
+    public GoalsFrame(String username) {
+        this.username = username;
+        this.isParent = AuthService.isParent();
+        this.goalDAO = new SavingsGoalDAO();
+
+        setTitle("Savings Goals - " + username);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setSize(800, 600);
         setLocationRelativeTo(null);
 
-        isParent = AuthService.isParent();
         initComponents();
         loadGoals();
     }
@@ -32,16 +41,13 @@ public class GoalsFrame extends JFrame {
     private void initComponents() {
         setLayout(new BorderLayout(10, 10));
 
-        // Header
         JPanel headerPanel = createHeaderPanel();
         add(headerPanel, BorderLayout.NORTH);
 
-        // Center panel with goals table
         JPanel centerPanel = new JPanel(new BorderLayout(10, 10));
         centerPanel.setBackground(new Color(240, 248, 255));
         centerPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Goals table
         String[] columns = {"Goal Name", "Target", "Current", "Progress", "Days Left", "Status"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
@@ -55,20 +61,17 @@ public class GoalsFrame extends JFrame {
         goalsTable.getTableHeader().setBackground(new Color(70, 130, 180));
         goalsTable.getTableHeader().setForeground(Color.WHITE);
 
-        // Set custom renderer for progress
         goalsTable.getColumnModel().getColumn(3).setCellRenderer(new ProgressBarRenderer());
 
         JScrollPane scrollPane = new JScrollPane(goalsTable);
         scrollPane.setPreferredSize(new Dimension(750, 300));
         centerPanel.add(scrollPane, BorderLayout.CENTER);
 
-        // Progress details panel
         progressPanel = createProgressPanel();
         centerPanel.add(progressPanel, BorderLayout.SOUTH);
 
         add(centerPanel, BorderLayout.CENTER);
 
-        // Bottom buttons panel
         JPanel buttonPanel = createButtonPanel();
         add(buttonPanel, BorderLayout.SOUTH);
     }
@@ -83,7 +86,7 @@ public class GoalsFrame extends JFrame {
         titleLabel.setForeground(Color.WHITE);
         header.add(titleLabel, BorderLayout.WEST);
 
-        JLabel subtitleLabel = new JLabel(isParent ? "Parent View" : "My Savings Goals");
+        JLabel subtitleLabel = new JLabel(isParent ? "Parent View - " + username : "My Savings Goals");
         subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         subtitleLabel.setForeground(Color.WHITE);
         header.add(subtitleLabel, BorderLayout.EAST);
@@ -99,11 +102,83 @@ public class GoalsFrame extends JFrame {
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
 
-        panel.add(createStatPanel("Total Goals", "0"));
-        panel.add(createStatPanel("Completed", "0"));
-        panel.add(createStatPanel("Total Saved", "₹0"));
+        return panel;
+    }
+
+    private JPanel createButtonPanel() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
+        panel.setBackground(new Color(240, 248, 255));
+
+        if (!isParent) {
+            JButton addGoalButton = new JButton("➕ New Goal");
+            addGoalButton.setBackground(new Color(144, 238, 144)); // Light green
+            addGoalButton.setForeground(Color.BLACK); // BLACK text
+            addGoalButton.setFocusPainted(false);
+            addGoalButton.addActionListener(e -> showAddGoalDialog());
+            panel.add(addGoalButton);
+
+            JButton transferButton = new JButton("💰 Transfer to Goal");
+            transferButton.setBackground(new Color(173, 216, 230)); // Light blue
+            transferButton.setForeground(Color.BLACK); // BLACK text
+            transferButton.setFocusPainted(false);
+            transferButton.addActionListener(e -> showTransferDialog());
+            panel.add(transferButton);
+        } else {
+            JButton bonusButton = new JButton("🎁 Give Bonus");
+            bonusButton.setBackground(new Color(255, 218, 185)); // Peach
+            bonusButton.setForeground(Color.BLACK); // BLACK text
+            bonusButton.setFocusPainted(false);
+            bonusButton.addActionListener(e -> showBonusDialog());
+            panel.add(bonusButton);
+        }
+
+        JButton refreshButton = new JButton("↻ Refresh");
+        refreshButton.setBackground(new Color(230, 230, 250)); // Lavender
+        refreshButton.setForeground(Color.BLACK); // BLACK text
+        refreshButton.setFocusPainted(false);
+        refreshButton.addActionListener(e -> loadGoals());
+        panel.add(refreshButton);
 
         return panel;
+    }
+
+    private void loadGoals() {
+        tableModel.setRowCount(0);
+        List<SavingsGoal> goals = goalDAO.getGoalsForUser(username);
+
+        int totalGoals = goals.size();
+        int completed = 0;
+        double totalSaved = 0;
+
+        for (SavingsGoal goal : goals) {
+            String status = goal.isCompleted() ? "✓ Completed" :
+                    (goal.getDaysLeft() < 0 ? "⚠ Overdue" : "🔄 In Progress");
+
+            tableModel.addRow(new Object[]{
+                    goal.getName(),
+                    "₹" + String.format("%.2f", goal.getTargetAmount()),
+                    "₹" + String.format("%.2f", goal.getCurrentAmount()),
+                    goal.getProgressPercentage(),
+                    goal.getDaysLeft() + " days",
+                    status,
+                    goal
+            });
+
+            if (goal.isCompleted()) completed++;
+            totalSaved += goal.getCurrentAmount();
+        }
+
+        updateProgressStats(totalGoals, completed, totalSaved);
+        checkGoalAlerts(goals);
+    }
+
+    private void updateProgressStats(int total, int completed, double totalSaved) {
+        progressPanel.removeAll();
+        progressPanel.add(createStatPanel("Total Goals", String.valueOf(total)));
+        progressPanel.add(createStatPanel("Completed", String.valueOf(completed)));
+        progressPanel.add(createStatPanel("Total Saved", "₹" + String.format("%.2f", totalSaved)));
+        progressPanel.revalidate();
+        progressPanel.repaint();
     }
 
     private JPanel createStatPanel(String label, String value) {
@@ -122,75 +197,6 @@ public class GoalsFrame extends JFrame {
         return panel;
     }
 
-    private JPanel createButtonPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
-        panel.setBackground(new Color(240, 248, 255));
-
-        if (!isParent) {
-            JButton addGoalButton = new JButton("➕ New Goal");
-            addGoalButton.addActionListener(e -> showAddGoalDialog());
-            panel.add(addGoalButton);
-
-            JButton transferButton = new JButton("💰 Transfer to Goal");
-            transferButton.addActionListener(e -> showTransferDialog());
-            panel.add(transferButton);
-        } else {
-            JButton bonusButton = new JButton("🎁 Give Bonus");
-            bonusButton.addActionListener(e -> showBonusDialog());
-            panel.add(bonusButton);
-        }
-
-        JButton refreshButton = new JButton("↻ Refresh");
-        refreshButton.addActionListener(e -> loadGoals());
-        panel.add(refreshButton);
-
-        return panel;
-    }
-
-    private void loadGoals() {
-        tableModel.setRowCount(0);
-        List<SavingsGoal> goals = FileManager.loadGoals();
-
-        int totalGoals = goals.size();
-        int completed = 0;
-        double totalSaved = 0;
-
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-
-        for (SavingsGoal goal : goals) {
-            String status = goal.isCompleted() ? "✓ Completed" :
-                    (goal.getDaysLeft() < 0 ? "⚠ Overdue" : "🔄 In Progress");
-
-            tableModel.addRow(new Object[]{
-                    goal.getName(),
-                    "₹" + String.format("%.2f", goal.getTargetAmount()),
-                    "₹" + String.format("%.2f", goal.getCurrentAmount()),
-                    goal.getProgressPercentage(),
-                    goal.getDaysLeft() + " days",
-                    status,
-                    goal // Store goal object for reference
-            });
-
-            if (goal.isCompleted()) completed++;
-            totalSaved += goal.getCurrentAmount();
-        }
-
-        // Update stats panel
-        updateProgressStats(totalGoals, completed, totalSaved);
-
-        // Check for alerts
-        checkGoalAlerts(goals);
-    }
-
-    private void updateProgressStats(int total, int completed, double totalSaved) {
-        progressPanel.removeAll();
-        progressPanel.add(createStatPanel("Total Goals", String.valueOf(total)));
-        progressPanel.add(createStatPanel("Completed", String.valueOf(completed)));
-        progressPanel.add(createStatPanel("Total Saved", "₹" + String.format("%.2f", totalSaved)));
-        progressPanel.revalidate();
-        progressPanel.repaint();
-    }
-
     private void checkGoalAlerts(List<SavingsGoal> goals) {
         for (SavingsGoal goal : goals) {
             double percent = goal.getProgressPercentage();
@@ -205,11 +211,6 @@ public class GoalsFrame extends JFrame {
                         "🎯 Goal '" + goal.getName() + "' is " + String.format("%.1f", percent) + "% complete!\nAlmost there!",
                         "Goal Progress",
                         JOptionPane.INFORMATION_MESSAGE);
-            } else if (goal.getDaysLeft() == 0) {
-                JOptionPane.showMessageDialog(this,
-                        "⚠ Today is the deadline for goal: " + goal.getName(),
-                        "Deadline Alert",
-                        JOptionPane.WARNING_MESSAGE);
             }
         }
     }
@@ -262,12 +263,12 @@ public class GoalsFrame extends JFrame {
                     return;
                 }
 
-                SavingsGoal goal = new SavingsGoal(0, name, target, 0, targetDate, false);
-                FileManager.addGoal(goal);
-
-                dialog.dispose();
-                loadGoals();
-                JOptionPane.showMessageDialog(this, "Goal created successfully!");
+                SavingsGoal goal = new SavingsGoal(0, name, target, 0, targetDate, false, username);
+                if (goalDAO.addGoal(goal)) {
+                    dialog.dispose();
+                    loadGoals();
+                    JOptionPane.showMessageDialog(this, "Goal created successfully!");
+                }
 
             } catch (NumberFormatException ex) {
                 JOptionPane.showMessageDialog(dialog, "Invalid amount format");
@@ -307,7 +308,7 @@ public class GoalsFrame extends JFrame {
                     return;
                 }
 
-                boolean success = WalletService.transferToGoal(goal.getId(), amount);
+                boolean success = WalletService.transferToGoal(goal.getId(), amount, username);
 
                 if (success) {
                     JOptionPane.showMessageDialog(this, "Transfer successful!");
@@ -344,9 +345,12 @@ public class GoalsFrame extends JFrame {
                     return;
                 }
 
-                WalletService.parentBonusToGoal(goal.getId(), amount);
-                JOptionPane.showMessageDialog(this, "Bonus added successfully!");
-                loadGoals();
+                boolean success = WalletService.parentBonusToGoal(goal.getId(), amount, username);
+
+                if (success) {
+                    JOptionPane.showMessageDialog(this, "Bonus added successfully!");
+                    loadGoals();
+                }
 
             } catch (NumberFormatException ex) {
                 JOptionPane.showMessageDialog(this, "Invalid amount");
@@ -354,7 +358,6 @@ public class GoalsFrame extends JFrame {
         }
     }
 
-    // Custom cell renderer for progress bar
     class ProgressBarRenderer extends JProgressBar implements javax.swing.table.TableCellRenderer {
         public ProgressBarRenderer() {
             super(0, 100);
@@ -370,15 +373,14 @@ public class GoalsFrame extends JFrame {
             setValue((int) Math.round(progress));
             setString(String.format("%.1f%%", progress));
 
-            // Set color based on progress
             if (progress >= 100) {
-                setForeground(new Color(76, 175, 80)); // Green
+                setForeground(new Color(76, 175, 80));
             } else if (progress >= 80) {
-                setForeground(new Color(33, 150, 243)); // Blue
+                setForeground(new Color(33, 150, 243));
             } else if (progress >= 50) {
-                setForeground(new Color(255, 152, 0)); // Orange
+                setForeground(new Color(255, 152, 0));
             } else {
-                setForeground(new Color(244, 67, 54)); // Red
+                setForeground(new Color(244, 67, 54));
             }
 
             return this;

@@ -13,8 +13,10 @@ public class VirtualCardPanel extends JPanel {
     private JLabel expiryLabel;
     private JLabel cvvLabel;
     private boolean cardFlipped = false;
+    private String username;
 
-    public VirtualCardPanel() {
+    public VirtualCardPanel(String username) {
+        this.username = username;
         setPreferredSize(new Dimension(350, 200));
         setBackground(new Color(25, 25, 112)); // Midnight blue
         setBorder(BorderFactory.createCompoundBorder(
@@ -26,6 +28,7 @@ public class VirtualCardPanel extends JPanel {
 
         initComponents();
         addTapToPayAnimation();
+        updateBalance();
     }
 
     private void initComponents() {
@@ -86,13 +89,11 @@ public class VirtualCardPanel extends JPanel {
         cvvLabel = new JLabel("***");
         cvvLabel.setFont(new Font("Monospaced", Font.PLAIN, 14));
         cvvLabel.setForeground(Color.WHITE);
-        expiryPanel.add(new JLabel("CVV:"), cvvLabel);
+        expiryPanel.add(new JLabel("CVV:"));
         expiryPanel.add(cvvLabel);
 
         gbc.gridy = 4;
         add(expiryPanel, gbc);
-
-        updateBalance();
     }
 
     private void addTapToPayAnimation() {
@@ -116,7 +117,6 @@ public class VirtualCardPanel extends JPanel {
 
     private void simulateTapToPay() {
         if (!cardFlipped) {
-            // Show CVV temporarily
             cvvLabel.setText("123");
             cardFlipped = true;
 
@@ -127,7 +127,6 @@ public class VirtualCardPanel extends JPanel {
             timer.setRepeats(false);
             timer.start();
 
-            // Show tap animation
             JOptionPane.showMessageDialog(this,
                     "💫 Tap to Pay Simulation 💫\nPayment terminal connected!\n(Simulated transaction)",
                     "Tap to Pay",
@@ -136,7 +135,7 @@ public class VirtualCardPanel extends JPanel {
     }
 
     public void updateBalance() {
-        double balance = WalletService.getBalance();
+        double balance = WalletService.getBalanceForUser(username);
         balanceLabel.setText(String.format("₹%.2f", balance));
     }
 }

@@ -6,12 +6,14 @@ import javax.swing.*;
 import java.awt.*;
 
 public class AddMoneyFrame extends JFrame {
+    private String teenUsername;
     private JTextField amountField;
     private JTextField noteField;
     private JLabel messageLabel;
 
-    public AddMoneyFrame() {
-        setTitle("Add Money to Teen Wallet");
+    public AddMoneyFrame(String teenUsername) {
+        this.teenUsername = teenUsername;
+        setTitle("Add Money to " + teenUsername + "'s Wallet");
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setSize(400, 300);
         setLocationRelativeTo(null);
@@ -30,7 +32,7 @@ public class AddMoneyFrame extends JFrame {
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
         // Title
-        JLabel titleLabel = new JLabel("Add Money to Teen's Wallet");
+        JLabel titleLabel = new JLabel("Add Money to " + teenUsername);
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
         titleLabel.setForeground(new Color(70, 130, 180));
         gbc.gridx = 0;
@@ -69,7 +71,7 @@ public class AddMoneyFrame extends JFrame {
         mainPanel.add(noteField, gbc);
 
         // Current balance info
-        double currentBalance = WalletService.getBalance();
+        double currentBalance = WalletService.getBalanceForUser(teenUsername);
         JLabel balanceLabel = new JLabel("Current balance: ₹" + String.format("%.2f", currentBalance));
         balanceLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         gbc.gridx = 0;
@@ -82,7 +84,7 @@ public class AddMoneyFrame extends JFrame {
         JButton addButton = new JButton("Add Money");
         addButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
         addButton.setBackground(new Color(70, 130, 180));
-        addButton.setForeground(Color.WHITE);
+        addButton.setForeground(Color.BLACK);
         addButton.setFocusPainted(false);
         addButton.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
         gbc.gridy = 4;
@@ -122,7 +124,7 @@ public class AddMoneyFrame extends JFrame {
                 note = "Added by parent";
             }
 
-            boolean success = WalletService.addMoney(amount, note);
+            boolean success = WalletService.addMoneyForUser(teenUsername, amount, note);
 
             if (success) {
                 showMessage("Money added successfully!", false);

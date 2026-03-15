@@ -8,6 +8,7 @@ import java.awt.*;
 public class SettingsFrame extends JFrame {
     private SettingsDAO settingsDAO;
     private UserSettings settings;
+    private String username;
 
     private JTextField dailyLimitField;
     private JTextField weeklyLimitField;
@@ -20,15 +21,16 @@ public class SettingsFrame extends JFrame {
     private JTextField othersLimitField;
     private JLabel messageLabel;
 
-    public SettingsFrame() {
-        setTitle("Settings - Parent Controls");
+    public SettingsFrame(String username) {
+        this.username = username;
+        setTitle("Settings - " + username);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setSize(500, 600);
         setLocationRelativeTo(null);
         setResizable(false);
 
         settingsDAO = new SettingsDAO();
-        settings = settingsDAO.getSettings();
+        settings = SettingsDAO.getSettingsForUser(username);
 
         initComponents();
         loadSettings();
@@ -43,8 +45,7 @@ public class SettingsFrame extends JFrame {
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Title
-        JLabel titleLabel = new JLabel("Parent Control Settings");
+        JLabel titleLabel = new JLabel("Settings for " + username);
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
         titleLabel.setForeground(new Color(70, 130, 180));
         gbc.gridx = 0;
@@ -53,7 +54,6 @@ public class SettingsFrame extends JFrame {
         gbc.anchor = GridBagConstraints.CENTER;
         mainPanel.add(titleLabel, gbc);
 
-        // Limit Settings Section
         JLabel limitsLabel = new JLabel("Spending Limits");
         limitsLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
         limitsLabel.setForeground(new Color(25, 25, 112));
@@ -63,7 +63,6 @@ public class SettingsFrame extends JFrame {
 
         gbc.insets = new Insets(5, 5, 5, 5);
 
-        // Daily Limit
         gbc.gridy = 2;
         gbc.gridwidth = 1;
         gbc.anchor = GridBagConstraints.EAST;
@@ -74,7 +73,6 @@ public class SettingsFrame extends JFrame {
         gbc.anchor = GridBagConstraints.WEST;
         mainPanel.add(dailyLimitField, gbc);
 
-        // Weekly Limit
         gbc.gridx = 0;
         gbc.gridy = 3;
         gbc.anchor = GridBagConstraints.EAST;
@@ -85,7 +83,6 @@ public class SettingsFrame extends JFrame {
         gbc.anchor = GridBagConstraints.WEST;
         mainPanel.add(weeklyLimitField, gbc);
 
-        // Card Lock
         gbc.gridx = 0;
         gbc.gridy = 4;
         gbc.anchor = GridBagConstraints.EAST;
@@ -97,7 +94,6 @@ public class SettingsFrame extends JFrame {
         gbc.anchor = GridBagConstraints.WEST;
         mainPanel.add(cardLockCheckBox, gbc);
 
-        // Category Limits Section
         JLabel categoryLabel = new JLabel("Category-wise Limits");
         categoryLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
         categoryLabel.setForeground(new Color(25, 25, 112));
@@ -110,7 +106,6 @@ public class SettingsFrame extends JFrame {
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.gridwidth = 1;
 
-        // Food Limit
         gbc.gridy = 6;
         gbc.gridx = 0;
         gbc.anchor = GridBagConstraints.EAST;
@@ -121,7 +116,6 @@ public class SettingsFrame extends JFrame {
         gbc.anchor = GridBagConstraints.WEST;
         mainPanel.add(foodLimitField, gbc);
 
-        // Entertainment Limit
         gbc.gridy = 7;
         gbc.gridx = 0;
         gbc.anchor = GridBagConstraints.EAST;
@@ -132,7 +126,6 @@ public class SettingsFrame extends JFrame {
         gbc.anchor = GridBagConstraints.WEST;
         mainPanel.add(entertainmentLimitField, gbc);
 
-        // Education Limit
         gbc.gridy = 8;
         gbc.gridx = 0;
         gbc.anchor = GridBagConstraints.EAST;
@@ -143,7 +136,6 @@ public class SettingsFrame extends JFrame {
         gbc.anchor = GridBagConstraints.WEST;
         mainPanel.add(educationLimitField, gbc);
 
-        // Shopping Limit
         gbc.gridy = 9;
         gbc.gridx = 0;
         gbc.anchor = GridBagConstraints.EAST;
@@ -154,7 +146,6 @@ public class SettingsFrame extends JFrame {
         gbc.anchor = GridBagConstraints.WEST;
         mainPanel.add(shoppingLimitField, gbc);
 
-        // Transport Limit
         gbc.gridy = 10;
         gbc.gridx = 0;
         gbc.anchor = GridBagConstraints.EAST;
@@ -165,7 +156,6 @@ public class SettingsFrame extends JFrame {
         gbc.anchor = GridBagConstraints.WEST;
         mainPanel.add(transportLimitField, gbc);
 
-        // Others Limit
         gbc.gridy = 11;
         gbc.gridx = 0;
         gbc.anchor = GridBagConstraints.EAST;
@@ -176,11 +166,10 @@ public class SettingsFrame extends JFrame {
         gbc.anchor = GridBagConstraints.WEST;
         mainPanel.add(othersLimitField, gbc);
 
-        // Save Button
         JButton saveButton = new JButton("Save Settings");
         saveButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        saveButton.setBackground(new Color(70, 130, 180));
-        saveButton.setForeground(Color.WHITE);
+        saveButton.setBackground(new Color(173, 216, 230));
+        saveButton.setForeground(Color.BLACK);
         saveButton.setFocusPainted(false);
         saveButton.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
         gbc.gridx = 0;
@@ -190,7 +179,6 @@ public class SettingsFrame extends JFrame {
         gbc.insets = new Insets(20, 5, 5, 5);
         mainPanel.add(saveButton, gbc);
 
-        // Message Label
         messageLabel = new JLabel(" ");
         messageLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         gbc.gridy = 13;
@@ -207,18 +195,16 @@ public class SettingsFrame extends JFrame {
         weeklyLimitField.setText(String.valueOf(settings.getWeeklyLimit()));
         cardLockCheckBox.setSelected(settings.isCardLocked());
 
-        // Load category limits
-        foodLimitField.setText(String.valueOf(settingsDAO.getCategoryLimit("Food")));
-        entertainmentLimitField.setText(String.valueOf(settingsDAO.getCategoryLimit("Entertainment")));
-        educationLimitField.setText(String.valueOf(settingsDAO.getCategoryLimit("Education")));
-        shoppingLimitField.setText(String.valueOf(settingsDAO.getCategoryLimit("Shopping")));
-        transportLimitField.setText(String.valueOf(settingsDAO.getCategoryLimit("Transport")));
-        othersLimitField.setText(String.valueOf(settingsDAO.getCategoryLimit("Others")));
+        foodLimitField.setText(String.valueOf(SettingsDAO.getCategoryLimitForUser(username, "Food")));
+        entertainmentLimitField.setText(String.valueOf(SettingsDAO.getCategoryLimitForUser(username, "Entertainment")));
+        educationLimitField.setText(String.valueOf(SettingsDAO.getCategoryLimitForUser(username, "Education")));
+        shoppingLimitField.setText(String.valueOf(SettingsDAO.getCategoryLimitForUser(username, "Shopping")));
+        transportLimitField.setText(String.valueOf(SettingsDAO.getCategoryLimitForUser(username, "Transport")));
+        othersLimitField.setText(String.valueOf(SettingsDAO.getCategoryLimitForUser(username, "Others")));
     }
 
     private void saveSettings() {
         try {
-            // Validate and save main settings
             double dailyLimit = Double.parseDouble(dailyLimitField.getText().trim());
             double weeklyLimit = Double.parseDouble(weeklyLimitField.getText().trim());
 
@@ -231,20 +217,18 @@ public class SettingsFrame extends JFrame {
             settings.setWeeklyLimit(weeklyLimit);
             settings.setCardLocked(cardLockCheckBox.isSelected());
 
-            boolean success = settingsDAO.saveSettings(settings);
+            boolean success = SettingsDAO.saveSettingsForUser(settings);
 
-            // Save category limits
-            success &= settingsDAO.updateCategoryLimit("Food", Double.parseDouble(foodLimitField.getText().trim()));
-            success &= settingsDAO.updateCategoryLimit("Entertainment", Double.parseDouble(entertainmentLimitField.getText().trim()));
-            success &= settingsDAO.updateCategoryLimit("Education", Double.parseDouble(educationLimitField.getText().trim()));
-            success &= settingsDAO.updateCategoryLimit("Shopping", Double.parseDouble(shoppingLimitField.getText().trim()));
-            success &= settingsDAO.updateCategoryLimit("Transport", Double.parseDouble(transportLimitField.getText().trim()));
-            success &= settingsDAO.updateCategoryLimit("Others", Double.parseDouble(othersLimitField.getText().trim()));
+            success &= SettingsDAO.updateCategoryLimitForUser(username, "Food", Double.parseDouble(foodLimitField.getText().trim()));
+            success &= SettingsDAO.updateCategoryLimitForUser(username, "Entertainment", Double.parseDouble(entertainmentLimitField.getText().trim()));
+            success &= SettingsDAO.updateCategoryLimitForUser(username, "Education", Double.parseDouble(educationLimitField.getText().trim()));
+            success &= SettingsDAO.updateCategoryLimitForUser(username, "Shopping", Double.parseDouble(shoppingLimitField.getText().trim()));
+            success &= SettingsDAO.updateCategoryLimitForUser(username, "Transport", Double.parseDouble(transportLimitField.getText().trim()));
+            success &= SettingsDAO.updateCategoryLimitForUser(username, "Others", Double.parseDouble(othersLimitField.getText().trim()));
 
             if (success) {
                 showMessage("Settings saved successfully!", false);
 
-                // Close after 1 second
                 Timer timer = new Timer(1000, e -> dispose());
                 timer.setRepeats(false);
                 timer.start();
