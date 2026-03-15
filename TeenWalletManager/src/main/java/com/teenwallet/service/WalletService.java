@@ -7,187 +7,138 @@ import com.teenwallet.dao.SavingsGoalDAO;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 
 public class WalletService {
-    private static TransactionDAO transactionDAO = new TransactionDAO();
-    private static SettingsDAO settingsDAO = new SettingsDAO();
-    private static SavingsGoalDAO savingsGoalDAO = new SavingsGoalDAO();
 
-    public static double getBalance() {
-        return transactionDAO.getCurrentBalance();
+    public static double getBalanceForUser(String username) {
+        return TransactionDAO.getCurrentBalanceForUser(username);
     }
 
-    public static boolean addMoney(double amount, String note) {
+    public static double getDailySpentForUser(String username) {
+        return TransactionDAO.getDailySpentForUser(username);
+    }
+
+    public static double getWeeklySpentForUser(String username) {
+        return TransactionDAO.getWeeklySpentForUser(username);
+    }
+
+    public static double getCategorySpentForUser(String username, String category) {
+        LocalDate now = LocalDate.now();
+        return TransactionDAO.getCategorySpentForUser(username, category, now.getMonthValue(), now.getYear());
+    }
+
+    public static boolean addMoneyForUser(String username, double amount, String note) {
         if (amount <= 0) return false;
 
-        double currentBalance = getBalance();
+        double currentBalance = getBalanceForUser(username);
         double newBalance = currentBalance + amount;
 
         Transaction transaction = new Transaction(
                 0, LocalDateTime.now(), Transaction.TransactionType.CREDIT,
-                amount, "Parent", note, newBalance
+                amount, "Parent", note, newBalance, username
         );
 
-        return transactionDAO.addTransaction(transaction);
+        return TransactionDAO.addTransaction(transaction);
     }
 
-    public static PaymentResult makePayment(double amount, String category) {
-        double currentBalance = getBalance();
-        UserSettings settings = settingsDAO.getSettings();
+    public static PaymentResult makePaymentForUser(String username, double amount, String category) {
+        double currentBalance = getBalanceForUser(username);
+        UserSettings settings = SettingsDAO.getSettingsForUser(username);
 
-        // Check card lock
         if (settings.isCardLocked()) {
-            return new PaymentResult(false, "Card is locked by parent!");
+            return new PaymentResult(false, "❌ Card is locked by parent!");
         }
 
-        // Check sufficient balance
         if (currentBalance < amount) {
-            return new PaymentResult(false, "Insufficient balance!");
+            return new PaymentResult(false, "❌ Insufficient balance! You have ₹" +
+                    String.format("%.2f", currentBalance));
         }
 
-        // Check daily limit
-        double dailySpent = getDailySpent();
+        double dailySpent = getDailySpentForUser(username);
         if (dailySpent + amount > settings.getDailyLimit()) {
             double remaining = settings.getDailyLimit() - dailySpent;
             return new PaymentResult(false,
-                    String.format("Daily limit exceeded! ₹%.2f left today", remaining));
+                    String.format("❌ Daily limit exceeded! ₹%.2f left today", Math.max(0, remaining)));
         }
 
-        // Check weekly limit
-        double weeklySpent = getWeeklySpent();
+        double weeklySpent = getWeeklySpentForUser(username);
         if (weeklySpent + amount > settings.getWeeklyLimit()) {
             double remaining = settings.getWeeklyLimit() - weeklySpent;
             return new PaymentResult(false,
-                    String.format("Weekly limit exceeded! ₹%.2f left this week", remaining));
+                    String.format("❌ Weekly limit exceeded! ₹%.2f left this week", Math.max(0, remaining)));
         }
 
-        // Check category limit - FIXED: categorySpent is now properly declared
         Double categoryLimit = settings.getCategoryLimits().get(category);
         if (categoryLimit != null) {
-            double categorySpent = getCategorySpent(category); // FIXED: Added declaration
+            double categorySpent = getCategorySpentForUser(username, category);
             if (categorySpent + amount > categoryLimit) {
                 double remaining = categoryLimit - categorySpent;
                 return new PaymentResult(false,
-                        String.format("%s limit exceeded! ₹%.2f left", category, remaining));
+                        String.format("❌ %s limit exceeded! ₹%.2f left", category, Math.max(0, remaining)));
             }
         }
 
-        // All checks passed, process payment
         double newBalance = currentBalance - amount;
         Transaction transaction = new Transaction(
                 0, LocalDateTime.now(), Transaction.TransactionType.DEBIT,
-                amount, category, "Payment for " + category, newBalance
+                amount, category, "Payment for " + category, newBalance, username
         );
 
-        boolean success = transactionDAO.addTransaction(transaction);
+        boolean success = TransactionDAO.addTransaction(transaction);
 
-        if (success) {
-            // Check if any limit is near 80%
-            checkLimitsWarning(dailySpent + amount, weeklySpent + amount,
-                    getCategorySpent(category) + amount, category, settings);
-        }
-
-        return new PaymentResult(success, success ? "Payment successful!" : "Payment failed!");
+        return new PaymentResult(success, success ?
+                "✅ Payment successful! ₹" + String.format("%.2f", amount) + " deducted" :
+                "❌ Payment failed!");
     }
 
-    public static boolean transferToGoal(int goalId, double amount) {
-        double currentBalance = getBalance();
+    public static boolean transferToGoal(int goalId, double amount, String username) {
+        double currentBalance = getBalanceForUser(username);
 
         if (currentBalance < amount) {
             return false;
         }
 
-        // Update goal
-        SavingsGoal goal = savingsGoalDAO.getGoalById(goalId);
-        if (goal == null) {
-            return false;
-        }
-
-        goal.setCurrentAmount(goal.getCurrentAmount() + amount);
-        boolean goalUpdated = savingsGoalDAO.updateGoal(goal);
-
-        if (goalUpdated) {
-            // Create transaction
-            double newBalance = currentBalance - amount;
-            Transaction transaction = new Transaction(
-                    0, LocalDateTime.now(), Transaction.TransactionType.SAVINGS,
-                    amount, "Savings", "Transfer to goal: " + goal.getName(), newBalance
-            );
-
-            transactionDAO.addTransaction(transaction);
-
-            // Check goal progress
-            checkGoalProgress(goal);
-
-            return true;
-        }
-
-        return false;
-    }
-
-    public static boolean parentBonusToGoal(int goalId, double amount) {
-        SavingsGoal goal = savingsGoalDAO.getGoalById(goalId);
+        SavingsGoalDAO goalDAO = new SavingsGoalDAO();
+        SavingsGoal goal = goalDAO.getGoalById(goalId);
         if (goal == null) return false;
 
         goal.setCurrentAmount(goal.getCurrentAmount() + amount);
-        boolean goalUpdated = savingsGoalDAO.updateGoal(goal);
+        boolean goalUpdated = goalDAO.updateGoal(goal);
 
         if (goalUpdated) {
+            double newBalance = currentBalance - amount;
             Transaction transaction = new Transaction(
-                    0, LocalDateTime.now(), Transaction.TransactionType.CREDIT,
-                    amount, "Parent Bonus", "Bonus for goal: " + goal.getName(),
-                    getBalance() + amount
+                    0, LocalDateTime.now(), Transaction.TransactionType.SAVINGS,
+                    amount, "Savings", "Transfer to goal: " + goal.getName(), newBalance, username
             );
-            transactionDAO.addTransaction(transaction);
 
-            checkGoalProgress(goal);
+            TransactionDAO.addTransaction(transaction);
             return true;
         }
 
         return false;
     }
 
-    private static double getDailySpent() {
-        return transactionDAO.getDailySpent();
-    }
+    public static boolean parentBonusToGoal(int goalId, double amount, String username) {
+        SavingsGoalDAO goalDAO = new SavingsGoalDAO();
+        SavingsGoal goal = goalDAO.getGoalById(goalId);
+        if (goal == null) return false;
 
-    private static double getWeeklySpent() {
-        return transactionDAO.getWeeklySpent();
-    }
+        goal.setCurrentAmount(goal.getCurrentAmount() + amount);
+        boolean goalUpdated = goalDAO.updateGoal(goal);
 
-    private static double getCategorySpent(String category) {
-        LocalDate now = LocalDate.now();
-        return transactionDAO.getCategorySpent(category, now.getMonthValue(), now.getYear());
-    }
-
-    private static void checkLimitsWarning(double daily, double weekly,
-                                           double category, String cat, UserSettings settings) {
-        double dailyPercent = (daily / settings.getDailyLimit()) * 100;
-        double weeklyPercent = (weekly / settings.getWeeklyLimit()) * 100;
-        Double catLimit = settings.getCategoryLimits().get(cat);
-        double categoryPercent = catLimit != null ? (category / catLimit) * 100 : 0;
-
-        if (dailyPercent >= 80) {
-            System.out.println("WARNING: Daily limit at " + String.format("%.1f", dailyPercent) + "%");
+        if (goalUpdated) {
+            double currentBalance = getBalanceForUser(username);
+            Transaction transaction = new Transaction(
+                    0, LocalDateTime.now(), Transaction.TransactionType.CREDIT,
+                    amount, "Parent Bonus", "Bonus for goal: " + goal.getName(),
+                    currentBalance + amount, username
+            );
+            TransactionDAO.addTransaction(transaction);
+            return true;
         }
-        if (weeklyPercent >= 80) {
-            System.out.println("WARNING: Weekly limit at " + String.format("%.1f", weeklyPercent) + "%");
-        }
-        if (categoryPercent >= 80) {
-            System.out.println("WARNING: Category limit for " + cat + " at " +
-                    String.format("%.1f", categoryPercent) + "%");
-        }
-    }
 
-    private static void checkGoalProgress(SavingsGoal goal) {
-        double percent = goal.getProgressPercentage();
-        if (percent >= 100) {
-            System.out.println("GOAL COMPLETED: " + goal.getName() + "!");
-        } else if (percent >= 80) {
-            System.out.println("GOAL ALERT: " + goal.getName() +
-                    " is " + String.format("%.1f", percent) + "% complete!");
-        }
+        return false;
     }
 
     public static class PaymentResult {
