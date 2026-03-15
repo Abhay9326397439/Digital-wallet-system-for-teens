@@ -11,6 +11,7 @@ public class Transaction {
     private String category;
     private String description;
     private double balanceAfter;
+    private String username;
 
     public enum TransactionType {
         CREDIT, DEBIT, SAVINGS
@@ -18,6 +19,11 @@ public class Transaction {
 
     public Transaction(int id, LocalDateTime date, TransactionType type,
                        double amount, String category, String description, double balanceAfter) {
+        this(id, date, type, amount, category, description, balanceAfter, "teen1");
+    }
+
+    public Transaction(int id, LocalDateTime date, TransactionType type,
+                       double amount, String category, String description, double balanceAfter, String username) {
         this.id = id;
         this.date = date;
         this.type = type;
@@ -25,6 +31,7 @@ public class Transaction {
         this.category = category;
         this.description = description;
         this.balanceAfter = balanceAfter;
+        this.username = username;
     }
 
     // Getters
@@ -35,6 +42,7 @@ public class Transaction {
     public String getCategory() { return category; }
     public String getDescription() { return description; }
     public double getBalanceAfter() { return balanceAfter; }
+    public String getUsername() { return username; }
 
     // Setters
     public void setId(int id) { this.id = id; }
@@ -44,15 +52,14 @@ public class Transaction {
     public void setCategory(String category) { this.category = category; }
     public void setDescription(String description) { this.description = description; }
     public void setBalanceAfter(double balanceAfter) { this.balanceAfter = balanceAfter; }
+    public void setUsername(String username) { this.username = username; }
 
-    // Format for file storage
     public String toFileString() {
         DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
-        return String.format("%d|%s|%s|%.2f|%s|%s|%.2f",
-                id, date.format(formatter), type, amount, category, description, balanceAfter);
+        return String.format("%d|%s|%s|%.2f|%s|%s|%.2f|%s",
+                id, date.format(formatter), type, amount, category, description, balanceAfter, username);
     }
 
-    // Parse from file string
     public static Transaction fromFileString(String line) {
         String[] parts = line.split("\\|");
         DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
@@ -63,7 +70,8 @@ public class Transaction {
                 Double.parseDouble(parts[3]),
                 parts[4],
                 parts[5],
-                Double.parseDouble(parts[6])
+                Double.parseDouble(parts[6]),
+                parts.length > 7 ? parts[7] : "teen1"
         );
     }
 
@@ -76,8 +84,12 @@ public class Transaction {
         return String.format("₹%.2f", amount);
     }
 
+    public String getFormattedBalance() {
+        return String.format("₹%.2f", balanceAfter);
+    }
+
     public String getColorCode() {
         return type == TransactionType.CREDIT ? "#4CAF50" :
                 type == TransactionType.DEBIT ? "#F44336" : "#FF9800";
     }
-}
+} // <-- This closing brace was missing

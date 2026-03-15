@@ -11,56 +11,44 @@ public class SavingsGoal {
     private double currentAmount;
     private LocalDate targetDate;
     private boolean completed;
+    private String username;
 
     public SavingsGoal(int id, String name, double targetAmount, double currentAmount,
-                       LocalDate targetDate, boolean completed) {
+                       LocalDate targetDate, boolean completed, String username) {
         this.id = id;
         this.name = name;
         this.targetAmount = targetAmount;
         this.currentAmount = currentAmount;
         this.targetDate = targetDate;
         this.completed = completed;
+        this.username = username;
     }
 
-    // Getters
     public int getId() { return id; }
-    public String getName() { return name; }
-    public double getTargetAmount() { return targetAmount; }
-    public double getCurrentAmount() { return currentAmount; }
-    public LocalDate getTargetDate() { return targetDate; }
-    public boolean isCompleted() { return completed; }
-
-    // Setters
     public void setId(int id) { this.id = id; }
+
+    public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+
+    public double getTargetAmount() { return targetAmount; }
     public void setTargetAmount(double targetAmount) { this.targetAmount = targetAmount; }
+
+    public double getCurrentAmount() { return currentAmount; }
     public void setCurrentAmount(double currentAmount) {
         this.currentAmount = currentAmount;
         if (currentAmount >= targetAmount) {
             this.completed = true;
         }
     }
+
+    public LocalDate getTargetDate() { return targetDate; }
     public void setTargetDate(LocalDate targetDate) { this.targetDate = targetDate; }
+
+    public boolean isCompleted() { return completed; }
     public void setCompleted(boolean completed) { this.completed = completed; }
 
-    public String toFileString() {
-        DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE;
-        return String.format("%d|%s|%.2f|%.2f|%s|%b",
-                id, name, targetAmount, currentAmount, targetDate.format(formatter), completed);
-    }
-
-    public static SavingsGoal fromFileString(String line) {
-        String[] parts = line.split("\\|");
-        DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE;
-        return new SavingsGoal(
-                Integer.parseInt(parts[0]),
-                parts[1],
-                Double.parseDouble(parts[2]),
-                Double.parseDouble(parts[3]),
-                LocalDate.parse(parts[4], formatter),
-                Boolean.parseBoolean(parts[5])
-        );
-    }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
 
     public double getProgressPercentage() {
         return (currentAmount / targetAmount) * 100;
@@ -68,13 +56,5 @@ public class SavingsGoal {
 
     public long getDaysLeft() {
         return ChronoUnit.DAYS.between(LocalDate.now(), targetDate);
-    }
-
-    public String getProgressColor() {
-        double percentage = getProgressPercentage();
-        if (percentage >= 100) return "#4CAF50";
-        if (percentage >= 80) return "#2196F3";
-        if (percentage >= 50) return "#FF9800";
-        return "#F44336";
     }
 }
