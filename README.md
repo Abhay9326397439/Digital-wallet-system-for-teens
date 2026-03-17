@@ -246,20 +246,24 @@ TeenWalletManager/
 │   │   │   └── com/
 │   │   │       └── teenwallet/
 │   │   │           ├── Main.java
+│   │   │           │
 │   │   │           ├── model/
 │   │   │           │   ├── User.java
 │   │   │           │   ├── Transaction.java
 │   │   │           │   ├── SavingsGoal.java
 │   │   │           │   └── UserSettings.java
+│   │   │           │
 │   │   │           ├── dao/
 │   │   │           │   ├── UserDAO.java
 │   │   │           │   ├── TransactionDAO.java
 │   │   │           │   ├── SavingsGoalDAO.java
 │   │   │           │   └── SettingsDAO.java
+│   │   │           │
 │   │   │           ├── service/
 │   │   │           │   ├── AuthService.java
 │   │   │           │   ├── WalletService.java
 │   │   │           │   └── ReportService.java
+│   │   │           │
 │   │   │           ├── ui/
 │   │   │           │   ├── BaseFrame.java
 │   │   │           │   ├── LoginFrame.java
@@ -272,21 +276,27 @@ TeenWalletManager/
 │   │   │           │   ├── GoalsFrame.java
 │   │   │           │   ├── SettingsFrame.java
 │   │   │           │   ├── TransactionHistoryFrame.java
+│   │   │           │   │
 │   │   │           │   └── components/
 │   │   │           │       ├── VirtualCardPanel.java
 │   │   │           │       ├── SideNavigationPanel.java
 │   │   │           │       └── ButtonStyler.java
+│   │   │           │
 │   │   │           └── utils/
 │   │   │               ├── DBConnection.java
 │   │   │               ├── ExportUtils.java
 │   │   │               └── DateUtils.java
+│   │   │
 │   │   └── resources/
 │   │       ├── config.properties
 │   │       └── data/
+│   │
 │   └── test/
 │       └── java/
+│
 ├── database/
 │   └── schema.sql
+│
 ├── pom.xml
 ├── README.md
 └── .gitignore
