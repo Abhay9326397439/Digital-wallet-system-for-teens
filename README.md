@@ -238,7 +238,7 @@ Charts	JFreeChart 1.5.3
 IDE Support	IntelliJ IDEA, Eclipse, NetBeans
 
 ## File Structure
-
+```
 TeenWalletManager/
 ├── src/
 │   ├── main/
@@ -300,7 +300,7 @@ TeenWalletManager/
 ├── pom.xml
 ├── README.md
 └── .gitignore
-
+```
 ## Database Schema
 
 users: Parent and teen accounts
